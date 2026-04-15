@@ -71,10 +71,32 @@ export class ActionsService {
   }
 
   async findPendingConfirmationByToken(token: string) {
-    return this.confirmationTokens.findOne({
+    const confirmation = await this.confirmationTokens.findOne({
       where: { token, status: 'pending' },
       relations: ['actionRecord'],
     });
+
+    if (!confirmation) {
+      return null;
+    }
+
+    if (confirmation.expiresAt.getTime() <= Date.now()) {
+      confirmation.status = 'expired';
+      confirmation.respondedAt = new Date();
+      await this.confirmationTokens.save(confirmation);
+
+      const action = await this.actionRecords.findOne({ where: { id: confirmation.actionRecordId } });
+      if (action && action.status === 'pending_confirmation') {
+        action.status = 'cancelled';
+        action.errorMessage = 'Confirmation token expired';
+        action.completedAt = new Date();
+        await this.actionRecords.save(action);
+      }
+
+      return null;
+    }
+
+    return confirmation;
   }
 
   async confirmActionByToken(token: string, confirm: boolean) {
@@ -97,6 +119,18 @@ export class ActionsService {
       },
     });
     if (pendingToken) {
+      if (pendingToken.expiresAt.getTime() <= Date.now()) {
+        pendingToken.status = 'expired';
+        pendingToken.respondedAt = new Date();
+        await this.confirmationTokens.save(pendingToken);
+
+        action.status = 'cancelled';
+        action.errorMessage = 'Confirmation token expired';
+        action.completedAt = new Date();
+        await this.actionRecords.save(action);
+        return null;
+      }
+
       pendingToken.status = confirm ? 'confirmed' : 'cancelled';
       pendingToken.respondedAt = new Date();
       await this.confirmationTokens.save(pendingToken);

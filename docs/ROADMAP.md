@@ -2,6 +2,16 @@
 
 This is the sequential roadmap for building great-koala from scaffold to production MVP.
 
+## Progress Update (April 15, 2026)
+
+- [x] Auth refresh token endpoint and dashboard token persistence implemented
+- [x] Bridge per-tenant rate limiting implemented (Redis counter window)
+- [x] Sendblue outbound retry and status tracking implemented
+- [x] Confirmation token expiration enforced in control plane action flow
+- [x] Dashboard action history now supports status filtering and execution details
+- [x] Dashboard approval flow implemented (approve/reject pending confirmation actions)
+- [x] Connector disconnect flow implemented in control plane + dashboard
+
 ## Phase 0: Foundation (Current — Week 1)
 **Status**: ✅ Complete — Project scaffold delivered
 

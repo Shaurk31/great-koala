@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { register } from '../lib/api';
-import { setToken } from '../lib/auth';
+import { setAuthTokens } from '../lib/auth';
 import { useRouter } from 'next/router';
 
 export default function RegisterPage() {
@@ -29,7 +29,7 @@ export default function RegisterPage() {
       setError(loginResult.error || 'Unable to log in after registration');
       return;
     }
-    setToken(loginResult.accessToken);
+    setAuthTokens(loginResult.accessToken, loginResult.refreshToken);
     router.push('/');
   };
 

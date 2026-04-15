@@ -2,7 +2,7 @@
 
 import React, { useState } from 'react';
 import { login } from '../lib/api';
-import { setToken } from '../lib/auth';
+import { setAuthTokens } from '../lib/auth';
 import { useRouter } from 'next/router';
 
 export default function LoginPage() {
@@ -19,7 +19,7 @@ export default function LoginPage() {
       setError(result.error || 'Invalid login');
       return;
     }
-    setToken(result.accessToken);
+    setAuthTokens(result.accessToken, result.refreshToken);
     router.push('/');
   };
 

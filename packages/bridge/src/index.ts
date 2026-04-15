@@ -16,6 +16,7 @@ const SENDBLUE_API_URL = process.env.SENDBLUE_API_URL || 'https://api.sendblue.i
 const SENDBLUE_API_KEY = process.env.SENDBLUE_API_KEY || '';
 const WEBHOOK_SECRET = process.env.SENDBLUE_WEBHOOK_SECRET || '';
 const DEDUPE_WINDOW_SEC = 300;
+const TENANT_RATE_LIMIT_PER_MINUTE = Number(process.env.TENANT_RATE_LIMIT_PER_MINUTE || 60);
 
 const redisClient = createClient({ url: REDIS_URL });
 const controlPlane = new ControlPlaneClient(CONTROL_PLANE_URL);
@@ -51,6 +52,26 @@ const parseSendblueEvent = (payload: any) => {
   };
 };
 
+const getMinuteBucket = () => Math.floor(Date.now() / 60000);
+
+const enforceTenantRateLimit = async (tenantId: string) => {
+  const key = `tenant:rate:${tenantId}:${getMinuteBucket()}`;
+  const count = await redisClient.incr(key);
+  if (count === 1) {
+    await redisClient.expire(key, 120);
+  }
+  return {
+    allowed: count <= TENANT_RATE_LIMIT_PER_MINUTE,
+    count,
+    limit: TENANT_RATE_LIMIT_PER_MINUTE,
+  };
+};
+
+const trackOutboundStatus = async (messageId: string, status: unknown) => {
+  const statusKey = `sendblue:status:${messageId}`;
+  await redisClient.setEx(statusKey, 60 * 60 * 24, JSON.stringify(status));
+};
+
 app.get('/health', (_req: Request, res: Response) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
@@ -78,6 +99,20 @@ app.post('/webhooks/sendblue', async (req: Request, res: Response) => {
     await redisClient.setEx(dedupeKey, DEDUPE_WINDOW_SEC, '1');
 
     const routing = await controlPlane.resolveRouting(event.sendblueAccount, event.from, event.threadId);
+    const rateLimit = await enforceTenantRateLimit(routing.tenantId);
+    if (!rateLimit.allowed) {
+      logger.warn('Tenant rate limit exceeded', {
+        tenantId: routing.tenantId,
+        currentCount: rateLimit.count,
+        limit: rateLimit.limit,
+      });
+      return res.status(429).json({
+        success: false,
+        error: 'Tenant message rate limit exceeded',
+        data: { tenantId: routing.tenantId, limit: rateLimit.limit },
+      });
+    }
+
     const confirmationIntent = parseConfirmationIntent(event.text);
 
     if (confirmationIntent !== null) {
@@ -87,12 +122,23 @@ app.post('/webhooks/sendblue', async (req: Request, res: Response) => {
         event.threadId || event.messageId,
         confirmationIntent,
       );
-      const message = confirmationIntent ? 'Your request has been confirmed.' : 'Your request has been cancelled.';
-      await sendblueClient.sendMessage({
+
+      const confirmationSucceeded = Boolean(confirmationResult?.success);
+      const message = confirmationSucceeded
+        ? (confirmationIntent ? 'Your request has been confirmed.' : 'Your request has been cancelled.')
+        : 'No pending confirmation was found for this thread. Please submit the request again.';
+
+      const sendResult = await sendblueClient.sendMessage({
         to: event.from,
         text: message,
         externalThreadId: event.threadId || event.messageId,
       });
+      await trackOutboundStatus(event.messageId, sendResult);
+
+      if (!sendResult.success) {
+        return res.status(502).json({ success: false, error: 'Failed to send confirmation status to Sendblue' });
+      }
+
       return res.json({ success: true, confirmationResult });
     }
 
@@ -104,20 +150,32 @@ app.post('/webhooks/sendblue', async (req: Request, res: Response) => {
 
     if (runtimeResult?.type === 'confirm') {
       const responseText = `⚠️ Action requires confirmation:\n${runtimeResult.text}\nReply YES to confirm or NO to cancel.`;
-      await sendblueClient.sendMessage({
+      const sendResult = await sendblueClient.sendMessage({
         to: event.from,
         text: responseText,
         externalThreadId: event.threadId || event.messageId,
       });
+      await trackOutboundStatus(event.messageId, sendResult);
+
+      if (!sendResult.success) {
+        return res.status(502).json({ success: false, error: 'Failed to send confirmation prompt to Sendblue' });
+      }
+
       return res.json({ success: true, pendingConfirmation: true, actionId: runtimeResult.actionId });
     }
 
     if (runtimeResult?.type === 'reply') {
-      await sendblueClient.sendMessage({
+      const sendResult = await sendblueClient.sendMessage({
         to: event.from,
         text: runtimeResult.text,
         externalThreadId: event.threadId || event.messageId,
       });
+      await trackOutboundStatus(event.messageId, sendResult);
+
+      if (!sendResult.success) {
+        return res.status(502).json({ success: false, error: 'Failed to send reply through Sendblue' });
+      }
+
       return res.json({ success: true, replySent: true });
     }
 

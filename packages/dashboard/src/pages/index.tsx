@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { getToken } from '../lib/auth';
-import { createTenant, getActions, getProfile, getTenants } from '../lib/api';
+import { createTenant, getActions, getConnectors, getProfile, getTenants } from '../lib/api';
 
 type Tenant = {
   id: string;
@@ -16,6 +16,14 @@ type ProfileResponse = {
   user: { id: string; email: string; name?: string };
 };
 
+type ActionRecord = {
+  status: string;
+};
+
+type Connector = {
+  syncStatus: string;
+};
+
 export default function Dashboard() {
   const [profile, setProfile] = useState<ProfileResponse | null>(null);
   const [tenants, setTenants] = useState<Tenant[]>([]);
@@ -23,6 +31,8 @@ export default function Dashboard() {
   const [newTenantName, setNewTenantName] = useState('');
   const [newTenantPhone, setNewTenantPhone] = useState('');
   const [actionCount, setActionCount] = useState(0);
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+  const [connectedAccountsCount, setConnectedAccountsCount] = useState(0);
   const [loading, setLoading] = useState(true);
   const token = getToken();
 
@@ -58,11 +68,21 @@ export default function Dashboard() {
     const loadActions = async () => {
       const actionResponse = await getActions(selectedTenantId, token);
       if (actionResponse.success) {
-        setActionCount(Array.isArray(actionResponse.data) ? actionResponse.data.length : 0);
+        const items = (actionResponse.data || []) as ActionRecord[];
+        setActionCount(items.length);
+        setPendingApprovalsCount(items.filter((action) => action.status === 'pending_confirmation').length);
       }
     };
 
-    loadActions();
+    const loadConnectors = async () => {
+      const connectorsResponse = await getConnectors(selectedTenantId, token);
+      if (connectorsResponse.success) {
+        const connectors = (connectorsResponse.data || []) as Connector[];
+        setConnectedAccountsCount(connectors.filter((connector) => connector.syncStatus === 'active').length);
+      }
+    };
+
+    Promise.all([loadActions(), loadConnectors()]);
   }, [selectedTenantId, token]);
 
   const handleTenantSelect = (tenantId: string) => {
@@ -136,7 +156,7 @@ export default function Dashboard() {
             <div className="grid gap-6 md:grid-cols-3">
               <div className="rounded-2xl border border-gray-200 p-5">
                 <div className="text-xs uppercase tracking-wide text-gray-500">Connected accounts</div>
-                <div className="mt-3 text-3xl font-semibold text-gray-900">{selectedTenantId ? '1+' : '0'}</div>
+                <div className="mt-3 text-3xl font-semibold text-gray-900">{connectedAccountsCount}</div>
               </div>
               <div className="rounded-2xl border border-gray-200 p-5">
                 <div className="text-xs uppercase tracking-wide text-gray-500">Actions recorded</div>
@@ -144,7 +164,7 @@ export default function Dashboard() {
               </div>
               <div className="rounded-2xl border border-gray-200 p-5">
                 <div className="text-xs uppercase tracking-wide text-gray-500">Pending approvals</div>
-                <div className="mt-3 text-3xl font-semibold text-gray-900">0</div>
+                <div className="mt-3 text-3xl font-semibold text-gray-900">{pendingApprovalsCount}</div>
               </div>
             </div>
 

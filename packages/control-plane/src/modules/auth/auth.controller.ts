@@ -23,6 +23,12 @@ export class AuthController {
     return { success: true, ...(await this.authService.login(user)) };
   }
 
+  @Post('refresh')
+  async refresh(@Body() body: { refreshToken: string }) {
+    const data = await this.authService.refresh(body.refreshToken);
+    return { success: true, ...data };
+  }
+
   @UseGuards(JwtAuthGuard)
   @Get('profile')
   getProfile(@Request() req: any) {

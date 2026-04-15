@@ -45,7 +45,7 @@ export class RuntimeService {
           confirmationToken: token.token,
         };
       }
-      await this.actionsService.executeAction(action.id);
+      await this.actionsService.executeAction(action);
       return {
         type: 'reply' as const,
         text: 'Done — I archived the recruiter emails older than 2 weeks.',

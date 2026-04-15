@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ThirdPartyAccount } from './third-party-account.entity';
@@ -48,6 +48,17 @@ export class ConnectorsService {
     });
 
     this.logger.log(`Created Gmail connector for tenant ${tenantId}`);
+    return this.accounts.save(account);
+  }
+
+  async disconnectAccount(accountId: string, tenantId: string) {
+    const account = await this.accounts.findOne({ where: { id: accountId, tenantId } });
+    if (!account) {
+      throw new NotFoundException('Connector account not found');
+    }
+
+    account.syncStatus = 'disconnected';
+    this.logger.log(`Disconnected ${account.accountType} account ${account.id} for tenant ${tenantId}`);
     return this.accounts.save(account);
   }
 }

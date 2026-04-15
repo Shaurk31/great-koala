@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, Query, Redirect, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Post, Query, Res, UseGuards } from '@nestjs/common';
 import { Response } from 'express';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { ConnectorsService } from './connectors.service';
@@ -32,5 +32,12 @@ export class ConnectorsController {
   async connectGmail(@Body() body: { tenantId: string; email: string }) {
     const account = await this.connectorsService.createMockAccount(body.tenantId, 'gmail', body.email);
     return { success: true, data: account };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post(':id/disconnect')
+  async disconnect(@Param('id') id: string, @Body() body: { tenantId: string }) {
+    const connector = await this.connectorsService.disconnectAccount(id, body.tenantId);
+    return { success: true, data: connector };
   }
 }

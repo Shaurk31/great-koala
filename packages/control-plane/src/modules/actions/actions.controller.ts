@@ -20,6 +20,7 @@ export class ActionsController {
     return { success: true, data: action };
   }
 
+  @UseGuards(JwtAuthGuard)
   @Post(':id/confirm')
   async confirm(@Param('id') id: string, @Body() body: { confirm: boolean }) {
     const action = await this.actionsService.confirmAction(id, body.confirm);

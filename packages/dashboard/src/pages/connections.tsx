@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/router';
 import { getToken } from '../lib/auth';
-import { getConnectors, getTenants, startGmailOAuth } from '../lib/api';
+import { disconnectConnector, getConnectors, getTenants, startGmailOAuth } from '../lib/api';
 
 type Tenant = {
   id: string;
@@ -24,8 +24,16 @@ export default function Connections() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState('');
+  const [disconnectingConnectorId, setDisconnectingConnectorId] = useState<string | null>(null);
   const token = getToken();
   const router = useRouter();
+
+  const loadConnectors = async (tenantId: string, authToken: string) => {
+    const connectorResponse = await getConnectors(tenantId, authToken);
+    if (connectorResponse.success) {
+      setConnectors(connectorResponse.data || []);
+    }
+  };
 
   useEffect(() => {
     if (!token) return;
@@ -46,14 +54,7 @@ export default function Connections() {
   useEffect(() => {
     if (!token || !selectedTenantId) return;
 
-    const loadConnectors = async () => {
-      const connectorResponse = await getConnectors(selectedTenantId, token);
-      if (connectorResponse.success) {
-        setConnectors(connectorResponse.data || []);
-      }
-    };
-
-    loadConnectors();
+    loadConnectors(selectedTenantId, token);
   }, [selectedTenantId, token]);
 
   const handleGmailConnect = async () => {
@@ -70,6 +71,24 @@ export default function Connections() {
     }
 
     window.location.href = response.data.url;
+  };
+
+  const handleDisconnect = async (connectorId: string) => {
+    if (!token || !selectedTenantId) return;
+    setDisconnectingConnectorId(connectorId);
+    setError(null);
+    setSuccessMessage('');
+
+    const response = await disconnectConnector(connectorId, selectedTenantId, token);
+    if (!response.success) {
+      setError(response.error || 'Unable to disconnect account');
+      setDisconnectingConnectorId(null);
+      return;
+    }
+
+    setSuccessMessage('Connector disconnected.');
+    await loadConnectors(selectedTenantId, token);
+    setDisconnectingConnectorId(null);
   };
 
   return (
@@ -138,9 +157,19 @@ export default function Connections() {
                       <p className="font-semibold text-gray-900">{connector.accountType.toUpperCase()}</p>
                       <p className="text-sm text-gray-500">{connector.externalEmail || 'No email available'}</p>
                     </div>
-                    <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800">
-                      {connector.syncStatus}
-                    </span>
+                    <div className="flex items-center gap-3">
+                      <span className="rounded-full bg-slate-100 px-3 py-1 text-xs font-medium text-slate-800">
+                        {connector.syncStatus}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => handleDisconnect(connector.id)}
+                        disabled={disconnectingConnectorId === connector.id || connector.syncStatus === 'disconnected'}
+                        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-medium text-gray-700 hover:bg-gray-50 disabled:opacity-60"
+                      >
+                        Disconnect
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))
