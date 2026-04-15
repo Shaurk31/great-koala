@@ -16,12 +16,29 @@ export class RoutingService {
   }
 
   async resolve(sendblueAccount: string, phoneNumber: string, externalThreadId?: string) {
-    const identity = await this.routing.findOne({
-      where: {
-        sendblueAccount,
-        phoneNumber,
-      },
-    });
+    let identity: RoutingIdentity | null = null;
+
+    if (externalThreadId) {
+      identity = await this.routing.findOne({
+        where: {
+          sendblueAccount,
+          phoneNumber,
+          externalThreadId,
+          isActive: true,
+        },
+      });
+    }
+
+    if (!identity) {
+      identity = await this.routing.findOne({
+        where: {
+          sendblueAccount,
+          phoneNumber,
+          isActive: true,
+        },
+      });
+    }
+
     if (!identity) {
       throw new NotFoundException('Routing identity not found');
     }

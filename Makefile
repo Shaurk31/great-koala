@@ -54,15 +54,15 @@ clean:
 	pnpm store prune
 
 infra-up:
-	docker-compose -f infra/docker/docker-compose.yml up -d
+	docker compose -f infra/docker/docker-compose.yml up -d
 	@echo "✓ Postgres running on localhost:5432"
 	@echo "✓ Redis running on localhost:6379"
 
 infra-down:
-	docker-compose -f infra/docker/docker-compose.yml down
+	docker compose -f infra/docker/docker-compose.yml down
 
 logs:
-	docker-compose -f infra/docker/docker-compose.yml logs -f
+	docker compose -f infra/docker/docker-compose.yml logs -f
 
 db-init: env
 	@echo "Loading database schema..."
@@ -71,8 +71,8 @@ db-init: env
 
 db-reset: env
 	@echo "Dropping and recreating database..."
-	@PGPASSWORD=dev-password psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS great_koala;"
-	@PGPASSWORD=dev-password psql -h localhost -U postgres -c "CREATE DATABASE great_koala;"
+	@PGPASSWORD=dev-password psql -h localhost -U postgres -c "DROP DATABASE IF EXISTS \"great-koala\";"
+	@PGPASSWORD=dev-password psql -h localhost -U postgres -c "CREATE DATABASE \"great-koala\";"
 	@echo "✓ Database reset"
 
 db-seed:

@@ -11,6 +11,10 @@ This is the sequential roadmap for building great-koala from scaffold to product
 - [x] Dashboard action history now supports status filtering and execution details
 - [x] Dashboard approval flow implemented (approve/reject pending confirmation actions)
 - [x] Connector disconnect flow implemented in control plane + dashboard
+- [x] Instance provisioning abstraction implemented with health sync endpoint
+- [x] Thread-aware routing resolution implemented (thread-first, sender fallback)
+- [x] Runtime can forward to tenant internal runtime URL when enabled
+- [x] Local developer ops fixes: modern docker compose command and db-reset name alignment
 
 ## Phase 0: Foundation (Current — Week 1)
 **Status**: ✅ Complete — Project scaffold delivered
@@ -41,6 +45,7 @@ pnpm dev
 
 ## Phase 1: Authentication (Weeks 2–3)
 **Goal**: User signup/login, JWT auth, protected routes
+**Status**: ✅ Complete (implementation)
 
 **Tasks**:
 
@@ -67,11 +72,11 @@ pnpm dev
    - Service token validation
 
 **Tests**:
-- [ ] User can sign up
-- [ ] User can log in
-- [ ] JWT token issued
-- [ ] Protected endpoints reject unauthenticated requests
-- [ ] Token refresh works
+- [x] User can sign up
+- [x] User can log in
+- [x] JWT token issued
+- [x] Protected endpoints reject unauthenticated requests
+- [x] Token refresh works
 
 **Acceptance Criteria**: Login form on dashboard → authenticated user → JWT in localStorage
 
@@ -79,6 +84,7 @@ pnpm dev
 
 ## Phase 2: Tenant Management (Weeks 4–5)
 **Goal**: Users can create workspaces (tenants), which provision OpenClaw instances
+**Status**: ✅ Complete (implementation)
 
 **Tasks**:
 
@@ -90,10 +96,10 @@ pnpm dev
 
 2. **Instances Module** (control-plane)
    - `src/modules/instances/instances.service.ts` — provisioning logic ✅
-   - `src/modules/instances/provisioner.ts` — VPS provisioning (mock or real SSH)
-   - Docker image pulling and starting
-   - Health check endpoint setup
-   - Subdomain registration (mock)
+   - `src/modules/instances/provisioner.ts` — VPS provisioning (mock or real SSH) ✅
+   - Docker image pulling and starting ✅
+   - Health check endpoint setup ✅
+   - Subdomain registration (mock) ✅
 
 3. **Dashboard Tenant UI** (dashboard)
    - Create workspace form
@@ -105,11 +111,11 @@ pnpm dev
    - Migrations for users, tenants, tenant_instances, routing_identities
 
 **Tests**:
-- [ ] User can create tenant
-- [ ] Tenant record appears in database
-- [ ] Instance provisioning begins
-- [ ] Health check endpoint responds
-- [ ] Tenant URL is registered
+- [x] User can create tenant
+- [x] Tenant record appears in database
+- [x] Instance provisioning begins
+- [x] Health check endpoint responds
+- [x] Tenant URL is registered
 
 **Acceptance Criteria**: User creates tender → Docker instance starts → Dashboard shows "Healthy"
 
@@ -117,6 +123,7 @@ pnpm dev
 
 ## Phase 3: Sendblue Bridge (Weeks 6–7)
 **Goal**: Messages → Bridge → OpenClaw → Response flow working end-to-end
+**Status**: ✅ Complete (implementation)
 
 **Tasks**:
 
@@ -129,7 +136,7 @@ pnpm dev
 2. **Tenant Router** (bridge)
    - `src/clients/control-plane.client.ts` — map phone/thread → tenant ✅
    - Query routing_identities table ✅
-   - Rate limiting per tenant
+   - Rate limiting per tenant ✅
 
 3. **OpenClaw Client** (bridge)
    - `src/clients/control-plane.client.ts` — HTTP message forwarding ✅
@@ -138,8 +145,8 @@ pnpm dev
 
 4. **Sendblue API Client** (bridge)
    - `src/clients/sendblue.client.ts` — send response messages ✅
-   - Status tracking
-   - Retry logic
+   - Status tracking ✅
+   - Retry logic ✅
 
 5. **Routing Setup** (control-plane)
    - Endpoint to create routing_identities ✅
@@ -148,7 +155,7 @@ pnpm dev
 **Tests**:
 - [x] Bridge receives webhook (mock Sendblue event)
 - [x] Bridge routes to correct tenant
-- [ ] Bridge forwards to OpenClaw gateway
+- [x] Bridge forwards to OpenClaw gateway
 - [x] OpenClaw response handling in control plane
 - [x] Bridge sends response back to user
 
@@ -158,6 +165,7 @@ pnpm dev
 
 ## Phase 4: OAuth Connectors (Weeks 8–9)
 **Goal**: Users can authorize Gmail, Google Calendar, Apple Notes
+**Status**: ✅ Complete (implementation for Gmail flow)
 
 **Tasks**:
 
@@ -186,13 +194,13 @@ pnpm dev
 **Progress**:
 - [x] Connector module scaffolding and tenant account storage
 - [x] Mock Gmail connector route in control plane
-- [ ] Full OAuth redirect flow and provider implementations
+- [x] Full OAuth redirect flow and provider implementations
 
 **Tests**:
-- [ ] User clicks "Connect Gmail"
-- [ ] Redirected to Google OAuth
-- [ ] Callback stores token
-- [ ] Token appears in AWS Secrets Manager
+- [x] User clicks "Connect Gmail"
+- [x] Redirected to Google OAuth
+- [x] Callback stores token
+- [x] Token appears in AWS Secrets Manager
 - [ ] OpenClaw can access token as env var
 
 **Acceptance Criteria**: User can authorize Gmail → draft email via iMessage
@@ -201,6 +209,7 @@ pnpm dev
 
 ## Phase 5: Policy Engine (Weeks 10–11)
 **Goal**: Prevent accidental destructive actions with confirmation flow
+**Status**: ✅ Complete (implementation)
 
 **Tasks**:
 
@@ -218,7 +227,7 @@ pnpm dev
 
 3. **Confirmation Tokens** (control-plane)
    - Create/validate tokens ✅
-   - TTL expiration
+   - TTL expiration ✅
    - Track approval/rejection ✅
 
 4. **Action Logging** (control-plane)
@@ -227,18 +236,18 @@ pnpm dev
    - Track execution status ✅
 
 5. **Dashboard History** (dashboard)
-   - Action history page
-   - Status filter (pending, executed, failed)
-   - Risk level display
-   - Execution details view
+   - Action history page ✅
+   - Status filter (pending, executed, failed) ✅
+   - Risk level display ✅
+   - Execution details view ✅
 
 **Tests**:
 - [x] Low-risk action (search) executes immediately
 - [x] Medium-risk action (archive) sends confirmation
-- [ ] User approves → action executes
-- [ ] User rejects → action cancelled
-- [ ] Confirmation tokens expire
-- [ ] Action appears in history
+- [x] User approves → action executes
+- [x] User rejects → action cancelled
+- [x] Confirmation tokens expire
+- [x] Action appears in history
 
 **Acceptance Criteria**: User sends "archive emails" → receives confirmation iMessage → approves → emails archived and logged
 

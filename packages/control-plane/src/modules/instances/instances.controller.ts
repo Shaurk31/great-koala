@@ -12,4 +12,11 @@ export class InstancesController {
     const instance = await this.instancesService.getByTenantId(tenantId);
     return { success: true, data: instance };
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get(':tenantId/health')
+  async getInstanceHealth(@Param('tenantId') tenantId: string) {
+    const instance = await this.instancesService.syncHealth(tenantId);
+    return { success: true, data: instance };
+  }
 }

@@ -1,15 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { ActionsService } from '../actions/actions.service';
 import { PoliciesService } from '../policies/policies.service';
+import { InstancesService } from '../instances/instances.service';
 
 @Injectable()
 export class RuntimeService {
   constructor(
     private readonly policiesService: PoliciesService,
     private readonly actionsService: ActionsService,
+    private readonly instancesService: InstancesService,
   ) {}
 
   async processMessage(tenantId: string, message: { text: string; sender: { phone: string; displayName?: string }; externalThreadId: string }) {
+    const useTenantRuntime = process.env.RUNTIME_FORWARD_TO_TENANT === 'true';
+    if (useTenantRuntime) {
+      const forwarded = await this.tryForwardToTenantRuntime(tenantId, message);
+      if (forwarded) {
+        return forwarded;
+      }
+    }
+
     const lower = message.text.toLowerCase();
     if (lower.includes('hello') || lower.includes('hi')) {
       return { type: 'reply' as const, text: 'Hi there! What can I help you with today?' };
@@ -125,5 +135,38 @@ export class RuntimeService {
     }
 
     return { type: 'reply' as const, text: 'I can help with email drafts, calendar events, and searching notes. Try asking me to archive recruiter emails or schedule lunch.' };
+  }
+
+  private async tryForwardToTenantRuntime(
+    tenantId: string,
+    message: { text: string; sender: { phone: string; displayName?: string }; externalThreadId: string },
+  ) {
+    const instance = await this.instancesService.getByTenantId(tenantId);
+    if (!instance) {
+      return null;
+    }
+
+    const runtimeUrl = instance.internalUrl.replace(/\/$/, '');
+    const localUrl = `http://localhost:${process.env.PORT || '3001'}/runtime/${tenantId}`;
+    if (runtimeUrl === localUrl) {
+      return null;
+    }
+
+    try {
+      const response = await fetch(`${runtimeUrl}/message`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(message),
+        signal: AbortSignal.timeout(5000),
+      });
+
+      if (!response.ok) {
+        return null;
+      }
+
+      return response.json();
+    } catch {
+      return null;
+    }
   }
 }
