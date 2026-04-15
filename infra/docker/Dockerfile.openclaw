@@ -1,0 +1,28 @@
+# OpenClaw Runtime Container
+# Per-tenant isolated instance with persistent storage
+
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Install OpenClaw
+# TODO: Replace with actual OpenClaw distribution
+# For now, this is a placeholder
+RUN npm install -g @openclaw/gateway
+
+# Copy configuration
+COPY ./config/openclaw.config.json /etc/openclaw/config.json
+
+# Health check
+HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8080/health || exit 1
+
+# Environment setup will be injected at runtime:
+# - DATABASE_URL (connection to Postgres state store)
+# - SENDBLUE_WEBHOOK_URL (callback endpoint)
+# - OPENAI_API_KEY (or other model provider)
+# - GMAIL_OAUTH_TOKEN / other connector tokens
+
+EXPOSE 8080
+
+CMD ["openclaw", "gateway", "--config", "/etc/openclaw/config.json"]

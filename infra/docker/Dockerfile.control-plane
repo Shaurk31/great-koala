@@ -1,0 +1,19 @@
+# Control Plane API
+FROM node:20-alpine AS builder
+WORKDIR /app
+COPY packages/control-plane/package.json .
+COPY pnpm-lock.yaml .
+RUN npm install -g pnpm && pnpm install
+COPY packages/control-plane/ .
+RUN pnpm run build
+
+FROM node:20-alpine
+WORKDIR /app
+RUN npm install -g pnpm
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/node_modules ./node_modules
+COPY packages/control-plane/package.json .
+
+EXPOSE 3001
+
+CMD ["node", "dist/main.js"]
